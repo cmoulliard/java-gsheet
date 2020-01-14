@@ -155,7 +155,7 @@ public class UpdateGAVGSheet {
                     Parent parent = model.getParent();
                     Model parentModel = parseMavenPOM(parent.getGroupId(), parent.getArtifactId(), parent.getVersion());
                     // TODO : Add a recursive function to read dependencies either oif they come from the pom, parent pom, ...
-                    // return "NO VERSION FOUND";
+                    return "NO VERSION FOUND";
                 }
                 // We will check if we have a version or ${}"
                 if (dep.getVersion().startsWith("${")) {
