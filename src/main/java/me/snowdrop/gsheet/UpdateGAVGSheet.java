@@ -47,11 +47,10 @@ public class UpdateGAVGSheet {
                 //.setApplicationName(APPLICATION_NAME)
                 .build();
 
-        // Read Cells content to get the GAV of the POM to search and component name
+        // Read the Cells content of the range "A:D"
+        // For each row, parse the POM file using the repo + groupID, artifactID and Version
+        // Next, search the component using its name to find the version
         readCells(service);
-
-        // Update Cells
-        // updateCells(service);
     }
 
     static void readCells(Sheets service) throws IOException, XmlPullParserException {
