@@ -37,6 +37,9 @@ public class SheetsQuickstart {
             = new java.io.File(System.getProperty("user.home"), "credentials");
     private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
 
+    private static String GSHEET_ID = "1YcNuI_lzruhhS4P1mIGnklSnLqfVK6SWQu1BRTP8jY4";
+    private static String INPUT_RANGE = "A1:A10";
+
     private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
 
         java.io.File clientSecretFilePath = new java.io.File(CREDENTIALS_FOLDER, CLIENT_SECRET_FILE_NAME);
@@ -65,13 +68,27 @@ public class SheetsQuickstart {
     public static void main(String... args) throws IOException, GeneralSecurityException, XmlPullParserException {
         // Build a new authorized API client service.
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-        final String spreadsheetId = "1YcNuI_lzruhhS4P1mIGnklSnLqfVK6SWQu1BRTP8jY4";
-        final String range = "A1:A10";
+
+        // Create a Service to read, update cells
         Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-                .setApplicationName(APPLICATION_NAME)
+                //.setApplicationName(APPLICATION_NAME)
                 .build();
+
+
+        // Read Cells
+        readCells(service);
+
+        // Fetch POM content and print GAV
+        parseMavenPOM("org/springframework/boot","spring-boot","2.1.0.RELEASE");
+
+        // Update Cells
+        updateCells(service);
+    }
+
+    static void readCells(Sheets service) throws IOException {
+        // Read Cells
         ValueRange response = service.spreadsheets().values()
-                .get(spreadsheetId, range)
+                .get(GSHEET_ID, INPUT_RANGE)
                 .execute();
         List<List<Object>> values = response.getValues();
         if (values == null || values.isEmpty()) {
@@ -83,7 +100,9 @@ public class SheetsQuickstart {
                 System.out.printf("%s\n", row.get(0));
             }
         }
+    }
 
+    static void updateCells(Sheets service) throws IOException {
         List<List<Object>> writeData = new ArrayList<>();
         List<Object> dataRow = new ArrayList<>();
         dataRow.add("B1");
@@ -97,16 +116,11 @@ public class SheetsQuickstart {
                 .setValues(writeData);
         UpdateValuesResponse result =
                 service.spreadsheets().values()
-                        .update(spreadsheetId, outputRange, body)
+                        .update(GSHEET_ID, outputRange, body)
                         .setValueInputOption("RAW")
                         .execute();
         System.out.printf("Cells updated.");
-
-        // Fetch POM content and print GAV
-        parseMavenPOM("org/springframework/boot","spring-boot","2.1.0.RELEASE");
     }
-
-
 
     static String fetchContent(URL url) {
         java.io.Reader reader = null;
