@@ -197,6 +197,11 @@ public class UpdateGAVGSheet {
                     while (e.hasMoreElements()) {
                         String key = (String) e.nextElement();
                         if (key.contains(componentToSearch)) {
+                            String val = props.getProperty(key);
+                            // If the key is not a version such as a string, message, then we continue
+                            if (val.contains(" ")) {
+                                continue;
+                            }
                             return props.getProperty(key);
                         }
                     }
