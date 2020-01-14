@@ -20,7 +20,6 @@ import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
 import java.io.*;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -28,7 +27,6 @@ import java.util.Collections;
 import java.util.List;
 
 public class UpdateGAVGSheet {
-    private static final String APPLICATION_NAME = "Google Sheets API Java Quickstart";
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
     private static final String CLIENT_SECRET_FILE_NAME = "client_secrets.json";
 
@@ -38,9 +36,54 @@ public class UpdateGAVGSheet {
     private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
 
     private static String GSHEET_ID = "1YcNuI_lzruhhS4P1mIGnklSnLqfVK6SWQu1BRTP8jY4";
-    private static String INPUT_RANGE = "A1:A10";
+    private static String INPUT_RANGE = "A:D";
 
-    private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
+    public static void main(String... args) throws IOException, GeneralSecurityException, XmlPullParserException {
+        // Build a new authorized API client service.
+        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+
+        // Create a Service to read, update cells
+        Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+                //.setApplicationName(APPLICATION_NAME)
+                .build();
+
+        // Read Cells content to get the GAV of the POM to search and component name
+        readCells(service);
+
+        // Update Cells
+        // updateCells(service);
+    }
+
+    static void readCells(Sheets service) throws IOException, XmlPullParserException {
+        // Read Cells
+        ValueRange response = service.spreadsheets().values()
+                .get(GSHEET_ID, INPUT_RANGE)
+                .execute();
+        List<List<Object>> values = response.getValues();
+        if (values == null || values.isEmpty()) {
+            System.out.println("No data found.");
+        } else {
+            for (int i = 1; i < values.size(); i++) {
+                List<Object> row = values.get(i);
+                String componentToSearch = (String)row.get(3);
+
+                System.out.printf("POM file to be parsed: %s for component : %s\n", row.get(0),componentToSearch);
+
+                // Fetch POM file using GAV defined within the G Sheet
+                Model model = parseMavenPOM((String)row.get(0),(String)row.get(1),(String)row.get(2));
+
+                // Check if the dependency contains the component to search and get version
+                String componentVersion = getComponentVersion(model, componentToSearch);
+                System.out.printf("Version : %s\n", componentVersion);
+
+                // Update the cell "E" to pass the version of the component
+                String cellPosition = "E" + (i+1);
+                updateCells(service,cellPosition,componentVersion);
+            }
+        }
+    }
+
+    static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
 
         java.io.File clientSecretFilePath = new java.io.File(CREDENTIALS_FOLDER, CLIENT_SECRET_FILE_NAME);
 
@@ -65,52 +108,13 @@ public class UpdateGAVGSheet {
         return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("me");
     }
 
-    public static void main(String... args) throws IOException, GeneralSecurityException, XmlPullParserException {
-        // Build a new authorized API client service.
-        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-
-        // Create a Service to read, update cells
-        Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-                //.setApplicationName(APPLICATION_NAME)
-                .build();
-
-
-        // Read Cells
-        readCells(service);
-
-        // Fetch POM content and print GAV
-        parseMavenPOM("org/springframework/boot","spring-boot","2.1.0.RELEASE");
-
-        // Update Cells
-        updateCells(service);
-    }
-
-    static void readCells(Sheets service) throws IOException {
-        // Read Cells
-        ValueRange response = service.spreadsheets().values()
-                .get(GSHEET_ID, INPUT_RANGE)
-                .execute();
-        List<List<Object>> values = response.getValues();
-        if (values == null || values.isEmpty()) {
-            System.out.println("No data found.");
-        } else {
-            System.out.println("Name, Major");
-            for (List row : values) {
-                // Print cell of the column A.
-                System.out.printf("%s\n", row.get(0));
-            }
-        }
-    }
-
-    static void updateCells(Sheets service) throws IOException {
+    static void updateCells(Sheets service, String cellToUpdate, String version) throws IOException {
         List<List<Object>> writeData = new ArrayList<>();
         List<Object> dataRow = new ArrayList<>();
-        dataRow.add("B1");
-        writeData.add(dataRow);
-        writeData.add(dataRow);
+        dataRow.add(version);
         writeData.add(dataRow);
 
-        final String outputRange = "B:B";
+        final String outputRange = cellToUpdate + ":" + cellToUpdate;
 
         ValueRange body = new ValueRange()
                 .setValues(writeData);
@@ -141,7 +145,17 @@ public class UpdateGAVGSheet {
         }
     }
 
-    static void parseMavenPOM(String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
+    static String getComponentVersion(Model model, String componentToSearch) {
+        List<Dependency> dependencies = model.getDependencies();
+        for(Dependency dep: dependencies) {
+            if (dep.getGroupId().contains(componentToSearch)) {
+                return dep.getVersion();
+            }
+        }
+        return "";
+    }
+
+    static Model parseMavenPOM(String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
         MavenXpp3Reader reader = new MavenXpp3Reader();
         String REPO = "http://repo1.maven.org/maven2/";
         URL url = new URL( REPO
@@ -154,21 +168,6 @@ public class UpdateGAVGSheet {
                  + artifactID + "-" + version + ".pom");
 
         String content = fetchContent(url);
-        Model model = reader.read(new StringReader(content));
-        System.out.println(model.getId());
-        System.out.println(model.getGroupId());
-        System.out.println(model.getArtifactId());
-        System.out.println(model.getVersion());
-
-        List<Dependency> dependencies = model.getDependencies();
-        for(Dependency dep: dependencies) {
-            if (dep.getGroupId().contains("tomcat")) {
-                System.out.println("====================");
-                System.out.println(dep.getGroupId());
-                System.out.println(dep.getArtifactId());
-                System.out.println(dep.getVersion());
-                System.out.println("====================");
-            }
-        }
+        return reader.read(new StringReader(content));
     }
 }
