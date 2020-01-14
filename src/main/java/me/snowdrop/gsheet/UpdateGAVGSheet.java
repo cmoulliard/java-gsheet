@@ -169,6 +169,7 @@ public class UpdateGAVGSheet {
                                 return props.getProperty(key);
                             }
                         }
+                        return "NO VERSION FOUND";
                     } else {
                         // TODO : Check parent pom as we do when dep.version = null
                         return "NO VERSION FOUND";
