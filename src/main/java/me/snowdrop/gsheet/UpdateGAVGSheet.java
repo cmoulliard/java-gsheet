@@ -33,7 +33,7 @@ public class UpdateGAVGSheet {
     // Directory to store user credentials for this application.
     private static final java.io.File CREDENTIALS_FOLDER //
             = new java.io.File(System.getProperty("user.home"), "credentials");
-    private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
+    private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS);
 
     private static String GSHEET_ID = "1YcNuI_lzruhhS4P1mIGnklSnLqfVK6SWQu1BRTP8jY4";
     private static String INPUT_RANGE = "A:D";
