@@ -22,9 +22,7 @@ import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import java.io.*;
 import java.net.URL;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class UpdateGAVGSheet {
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
@@ -65,19 +63,19 @@ public class UpdateGAVGSheet {
             for (int i = 1; i < values.size(); i++) {
                 List<Object> row = values.get(i);
 
-                String componentToSearch = (String)row.get(3);
+                String componentToSearch = (String) row.get(3);
                 System.out.printf("Component : %s\n", componentToSearch);
 
                 // Fetch POM file using GAV defined within the G Sheet
-                Model model = parseMavenPOM((String)row.get(0),(String)row.get(1),(String)row.get(2));
+                Model model = parseMavenPOM((String) row.get(0), (String) row.get(1), (String) row.get(2));
 
                 // Check if the dependency contains the component to search and get version
                 String componentVersion = getComponentVersion(model, componentToSearch);
                 System.out.printf("Version : %s\n", componentVersion);
 
                 // Update the cell "E" to pass the version of the component
-                String cellPosition = "E" + (i+1);
-                updateCells(service,cellPosition,componentVersion);
+                String cellPosition = "E" + (i + 1);
+                updateCells(service, cellPosition, componentVersion);
             }
         }
     }
@@ -146,8 +144,20 @@ public class UpdateGAVGSheet {
 
     static String getComponentVersion(Model model, String componentToSearch) {
         List<Dependency> dependencies = model.getDependencies();
-        for(Dependency dep: dependencies) {
+        for (Dependency dep : dependencies) {
             if (dep.getArtifactId().contains(componentToSearch)) {
+                // We will check if we have a version or ${}"
+                if (dep.getVersion().startsWith("${")) {
+                    Properties props = model.getProperties();
+                    Enumeration e = props.propertyNames();
+
+                    while (e.hasMoreElements()) {
+                        String key = (String) e.nextElement();
+                        if (key.contains(componentToSearch)) {
+                            return props.getProperty(key);
+                        }
+                    }
+                }
                 return dep.getVersion();
             }
         }
@@ -157,14 +167,14 @@ public class UpdateGAVGSheet {
     static Model parseMavenPOM(String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
         MavenXpp3Reader reader = new MavenXpp3Reader();
         String REPO = "http://repo1.maven.org/maven2/";
-        URL url = new URL( REPO
-                 + groupID
-                 + "/"
-                 + artifactID
-                 + "/"
-                 + version
-                 + "/"
-                 + artifactID + "-" + version + ".pom");
+        URL url = new URL(REPO
+                + groupID
+                + "/"
+                + artifactID
+                + "/"
+                + version
+                + "/"
+                + artifactID + "-" + version + ".pom");
 
         String content = fetchContent(url);
         return reader.read(new StringReader(content));
