@@ -191,25 +191,36 @@ public class UpdateGAVGSheet {
             // We will check if we have a version or ${}"
             if (dependency.getVersion().startsWith("${")) {
                 Properties props = model.getProperties();
-                Enumeration e = props.propertyNames();
-
-                if (e != null) {
-                    while (e.hasMoreElements()) {
-                        String key = (String) e.nextElement();
-                        if (key.contains(componentToSearch)) {
-                            String val = props.getProperty(key);
-                            // If the key is not a version such as a string, message, then we continue
-                            if (val.contains(" ")) {
-                                continue;
-                            }
-                            return props.getProperty(key);
+                Set<Map.Entry<Object, Object>> entries = props.entrySet();
+                for (Map.Entry<Object, Object> entry : entries) {
+                    String key = (String) entry.getKey();
+                    if (key.contains(componentToSearch)) {
+                        String val = (String)entry.getValue();
+                        // If the key is not a version such as a string, message, then we continue
+                        if (val.contains(" ")) {
+                            continue;
                         }
+                        return val;
                     }
-                    return "NO VERSION FOUND";
-                } else {
-                    // TODO : Check parent pom as we do when dep.version == null
-                    return "NO VERSION FOUND";
                 }
+                // If there are no properties, then we will check if the parent contains it
+                Parent parent = model.getParent();
+                Model parentModel = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
+                // TODO : To be improved
+                props = parentModel.getProperties();
+                entries = props.entrySet();
+                for (Map.Entry<Object, Object> entry : entries) {
+                    String key = (String) entry.getKey();
+                    if (key.contains(componentToSearch)) {
+                        String val = (String)entry.getValue();
+                        // If the key is not a version such as a string, message, then we continue
+                        if (val.contains(" ")) {
+                            continue;
+                        }
+                        return val;
+                    }
+                }
+
             }
             return dependency.getVersion();
         }
