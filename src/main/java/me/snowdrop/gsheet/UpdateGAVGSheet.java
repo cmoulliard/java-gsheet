@@ -153,7 +153,7 @@ public class UpdateGAVGSheet {
                 // If the version is null, then we will search the version using the parent
                 if (dep.getVersion() == null) {
                     Parent parent = model.getParent();
-                    Model parentModel = parseMavenPOM(parent.getGroupId(), parent.getArtifactId(), parent.getVersion());
+                    Model parentModel = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
                     // TODO : Add a recursive function to read dependencies either oif they come from the pom, parent pom, ...
                     return "NO VERSION FOUND";
                 }
