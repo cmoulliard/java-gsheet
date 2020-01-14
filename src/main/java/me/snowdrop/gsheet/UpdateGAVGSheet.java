@@ -146,6 +146,10 @@ public class UpdateGAVGSheet {
         List<Dependency> dependencies = model.getDependencies();
         for (Dependency dep : dependencies) {
             if (dep.getArtifactId().contains(componentToSearch)) {
+                // If the version is null, then we return an empty string
+                if (dep.getVersion() == null) {
+                    return "NO VERSION FOUND";
+                }
                 // We will check if we have a version or ${}"
                 if (dep.getVersion().startsWith("${")) {
                     Properties props = model.getProperties();
