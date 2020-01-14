@@ -65,8 +65,8 @@ public class UpdateGAVGSheet {
         } else {
             for (int i = 1; i < values.size(); i++) {
                 List<Object> row = values.get(i);
-                String componentToSearch = (String)row.get(3);
 
+                String componentToSearch = (String)row.get(3);
                 System.out.printf("Component : %s\n", componentToSearch);
 
                 // Fetch POM file using GAV defined within the G Sheet
@@ -123,7 +123,7 @@ public class UpdateGAVGSheet {
                         .update(GSHEET_ID, outputRange, body)
                         .setValueInputOption("RAW")
                         .execute();
-        System.out.printf("Cells updated.");
+        System.out.println("Cell updated.");
     }
 
     static String fetchContent(URL url) {
@@ -148,7 +148,7 @@ public class UpdateGAVGSheet {
     static String getComponentVersion(Model model, String componentToSearch) {
         List<Dependency> dependencies = model.getDependencies();
         for(Dependency dep: dependencies) {
-            if (dep.getGroupId().contains(componentToSearch)) {
+            if (dep.getArtifactId().contains(componentToSearch)) {
                 return dep.getVersion();
             }
         }
