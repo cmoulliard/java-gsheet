@@ -67,7 +67,7 @@ public class UpdateGAVGSheet {
                 List<Object> row = values.get(i);
                 String componentToSearch = (String)row.get(3);
 
-                System.out.printf("POM file to be parsed: %s for component : %s\n", row.get(0),componentToSearch);
+                System.out.printf("Component : %s\n", componentToSearch);
 
                 // Fetch POM file using GAV defined within the G Sheet
                 Model model = parseMavenPOM((String)row.get(0),(String)row.get(1),(String)row.get(2));
