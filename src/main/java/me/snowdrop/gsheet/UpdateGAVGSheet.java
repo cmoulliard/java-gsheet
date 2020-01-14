@@ -16,6 +16,7 @@ import com.google.api.services.sheets.v4.model.UpdateValuesResponse;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
+import org.apache.maven.model.Parent;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
@@ -142,13 +143,16 @@ public class UpdateGAVGSheet {
         }
     }
 
-    static String getComponentVersion(Model model, String componentToSearch) {
+    static String getComponentVersion(Model model, String componentToSearch) throws IOException, XmlPullParserException {
         List<Dependency> dependencies = model.getDependencies();
         for (Dependency dep : dependencies) {
             if (dep.getArtifactId().contains(componentToSearch)) {
-                // If the version is null, then we return an empty string
+                // If the version is null, then we will search the version using the parent
                 if (dep.getVersion() == null) {
-                    return "NO VERSION FOUND";
+                    Parent parent = model.getParent();
+                    Model parentModel = parseMavenPOM(parent.getGroupId(), parent.getArtifactId(), parent.getVersion());
+                    // TODO : Add a recursive function to read dependencies either oif they come from the pom, parent pom, ...
+                    // return "NO VERSION FOUND";
                 }
                 // We will check if we have a version or ${}"
                 if (dep.getVersion().startsWith("${")) {
