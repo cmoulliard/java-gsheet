@@ -171,6 +171,7 @@ public class UpdateGAVGSheet {
                         }
                     } else {
                         // TODO : Check parent pom as we do when dep.version = null
+                        return "NO VERSION FOUND";
                     }
                 }
                 return dep.getVersion();
