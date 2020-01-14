@@ -124,7 +124,7 @@ public class UpdateGAVGSheet {
                         .update(GSHEET_ID, outputRange, body)
                         .setValueInputOption("RAW")
                         .execute();
-        System.out.println("Cell updated.");
+        System.out.println("========================================");
     }
 
     static String fetchContent(URL url) {
@@ -148,45 +148,65 @@ public class UpdateGAVGSheet {
 
     static String getComponentVersion(Model model, String componentToSearch) throws IOException, XmlPullParserException {
         List<Dependency> dependencies = model.getDependencies();
-        for (Dependency dep : dependencies) {
-            if (dep.getArtifactId().contains(componentToSearch)) {
-                // If the version is null, then we will search the version using the parent
-                if (dep.getVersion() == null) {
-                    Parent parent = model.getParent();
-                    Model parentModel = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
-                    // TODO : Add a recursive function to read dependencies either oif they come from the pom, parent pom, ...
+        String result;
+
+        // Test if we have dependencies, otherwise use the dependencies delcared within the dependencyManagement section
+        if (dependencies.size() > 0) {
+            for (Dependency dep : dependencies) {
+                result = searchVersion(model, dep, componentToSearch);
+                if (result != "") {
+                    return result;
+                }
+            }
+        } else {
+            for (Dependency dep : model.getDependencyManagement().getDependencies()) {
+                result = searchVersion(model, dep, componentToSearch);
+                if (result != "") {
+                    return result;
+                }
+            }
+        }
+        return "";
+    }
+
+    static String searchVersion(Model model, Dependency dependency, String componentToSearch) throws IOException, XmlPullParserException {
+        if (dependency.getArtifactId().contains(componentToSearch)) {
+            // If the version is null, then we will search the version of the component
+            // using the dependencies defined within the parent pom
+            if (dependency.getVersion() == null) {
+                Parent parent = model.getParent();
+                Model parentModel = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
+                return getComponentVersion(parentModel, componentToSearch);
+            }
+
+            if (dependency.getVersion().startsWith("${project.version")) {
+                // Check if there is a version defined for the project, otherwise pickup the version of the parent
+                if (model.getVersion() == null) {
+                    return model.getParent().getVersion();
+                } else {
+                    return model.getVersion();
+                }
+            }
+
+            // We will check if we have a version or ${}"
+            if (dependency.getVersion().startsWith("${")) {
+                Properties props = model.getProperties();
+                Enumeration e = props.propertyNames();
+
+                if (e != null) {
+                    while (e.hasMoreElements()) {
+                        String key = (String) e.nextElement();
+                        if (key.contains(componentToSearch)) {
+                            return props.getProperty(key);
+                        }
+                    }
+                    return "NO VERSION FOUND";
+                } else {
+                    // TODO : Check parent pom as we do when dep.version == null
                     return "NO VERSION FOUND";
                 }
-
-                if (dep.getVersion().startsWith("${project.version")) {
-                    // Check if there is a version defined for the project, otherwise pickup the version of the parent
-                    if (model.getVersion() == null) {
-                        return model.getParent().getVersion();
-                    } else {
-                        return model.getVersion();
-                    }
-                }
-
-                // We will check if we have a version or ${}"
-                if (dep.getVersion().startsWith("${")) {
-                    Properties props = model.getProperties();
-                    Enumeration e = props.propertyNames();
-
-                    if (e != null) {
-                        while (e.hasMoreElements()) {
-                            String key = (String) e.nextElement();
-                            if (key.contains(componentToSearch)) {
-                                return props.getProperty(key);
-                            }
-                        }
-                        return "NO VERSION FOUND";
-                    } else {
-                        // TODO : Check parent pom as we do when dep.version = null
-                        return "NO VERSION FOUND";
-                    }
-                }
-                return dep.getVersion();
             }
+            return dependency.getVersion();
         }
         return "";
     }
