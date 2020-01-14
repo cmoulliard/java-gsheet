@@ -157,12 +157,22 @@ public class UpdateGAVGSheet {
                     // TODO : Add a recursive function to read dependencies either oif they come from the pom, parent pom, ...
                     return "NO VERSION FOUND";
                 }
+
+                if (dep.getVersion().startsWith("${project.version")) {
+                    // Check if there is a version defined for the project, otherwise pickup the version of the parent
+                    if (model.getVersion() == null) {
+                        return model.getParent().getVersion();
+                    } else {
+                        return model.getVersion();
+                    }
+                }
+
                 // We will check if we have a version or ${}"
                 if (dep.getVersion().startsWith("${")) {
                     Properties props = model.getProperties();
                     Enumeration e = props.propertyNames();
 
-                    if (e != null ) {
+                    if (e != null) {
                         while (e.hasMoreElements()) {
                             String key = (String) e.nextElement();
                             if (key.contains(componentToSearch)) {
