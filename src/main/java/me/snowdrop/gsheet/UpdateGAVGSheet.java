@@ -162,11 +162,15 @@ public class UpdateGAVGSheet {
                     Properties props = model.getProperties();
                     Enumeration e = props.propertyNames();
 
-                    while (e.hasMoreElements()) {
-                        String key = (String) e.nextElement();
-                        if (key.contains(componentToSearch)) {
-                            return props.getProperty(key);
+                    if (e != null ) {
+                        while (e.hasMoreElements()) {
+                            String key = (String) e.nextElement();
+                            if (key.contains(componentToSearch)) {
+                                return props.getProperty(key);
+                            }
                         }
+                    } else {
+                        // TODO : Check parent pom as we do when dep.version = null
                     }
                 }
                 return dep.getVersion();
