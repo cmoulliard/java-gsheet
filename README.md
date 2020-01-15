@@ -1,4 +1,11 @@
-## How to use the Java GSheet application
+# Java GSheet application
+
+This java application allows to update a Google Sheet document using an `Oauth Client Id` and will perform the following steps:
+- Read a range of cells containing the GAV definition of the POM to be used and the component name to search for
+- Grab the maven url and search about the version of the component using the dependencies of the pom or parent and/or properties
+- Save the version of the component like also the URL of the POM file containing it
+
+## Setup the project
 
 - Create a Google Oauth2 `client_id` and `client_secret` using the Google Developer console : `https://console.developers.google.com/apis/credentials`
 - Select from the `Create credentials` list, the entry `Oauth Client ID`
