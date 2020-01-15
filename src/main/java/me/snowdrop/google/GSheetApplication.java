@@ -111,8 +111,9 @@ public class GSheetApplication {
                         component.setModel(populateModel(component.pomContent));
                         System.out.printf("Maven URL : %s\n", component.repoURL);
 
-                        // Check if the dependency contains the component to search and get version
-                        component = getComponentVersion(component);
+                        // Check if the dependency contains the component to search and get the version
+                        // Scan first the pom
+                        component = getComponentVersion(component, false);
                         System.out.printf("Version : %s\n", component.version);
 
                         // Update the cell of the Component URL upstream using as text, the version and
@@ -181,6 +182,7 @@ public class GSheetApplication {
         MavenXpp3Reader reader = new MavenXpp3Reader();
         return reader.read(new StringReader(content));
     }
+
     static String fetchContent(URL url) {
         java.io.Reader reader = null;
         try {
@@ -200,91 +202,102 @@ public class GSheetApplication {
         }
     }
 
-    static Component getComponentVersion(Component component) throws IOException, XmlPullParserException {
-        List<Dependency> dependencies = component.getModel().getDependencies();
-        String result;
+    static Component getComponentVersion(Component component, boolean IsParentPom) throws IOException, XmlPullParserException {
+        Model model;
+        List<Dependency> dependencies;
 
-        // Test if we have dependencies within the pom, otherwise use the dependencies declared within the dependencyManagement section
-        // of the Parent Pom
-        if (dependencies.size() > 0) {
-            for (Dependency dep : dependencies) {
-                component = searchVersion(component, dep);
-                if (component.getVersion() != null) {
-                    return component;
-                }
-            }
+        if (!IsParentPom) {
+            model = component.getModel();
         } else {
-            for (Dependency dep : component.getParentModel().getDependencyManagement().getDependencies()) {
-                component = searchVersion(component, dep);
-                if (component.getVersion() != null) {
-                    return component;
-                }
+            model = component.getParentModel();
+        }
+
+        if (model.getDependencies().size() > 0) {
+            dependencies = model.getDependencies();
+        } else {
+            dependencies = model.getDependencyManagement().getDependencies();
+        }
+
+        for (Dependency dep : dependencies) {
+            component = searchVersion(component, dep);
+            if (component.getVersion() != null) {
+                return component;
             }
         }
+
         return component;
     }
 
     static Component searchVersion(Component component, Dependency dependency) throws IOException, XmlPullParserException {
         if (dependency.getArtifactId().contains(component.toSearch)) {
+
             // If the version is null, then we will search the version of the component
-            // using the dependencies defined within the parent pom
+            // using the parent pom
             if (dependency.getVersion() == null) {
                 Parent parent = component.getModel().getParent();
-                component.setRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
-                component.setPomContent(fetchContent(component.repoURL));
-                return getComponentVersion(component);
-            }
-
-            if (dependency.getVersion().startsWith("${project.version")) {
-                component.setGroupId(dependency.getGroupId());
-                component.setArtifactId(dependency.getArtifactId());
-                // Check if there is a version defined for the project, otherwise pickup the version of the parent
-                if (component.getModel().getVersion() == null) {
-                    component.setVersion(component.getModel().getParent().getVersion());
-                    return component;
-                } else {
-                    component.setVersion(component.getModel().getVersion());
-                    return component;
-                }
-            }
-
-            // We will check if we have a version or ${}"
-            if (dependency.getVersion().startsWith("${")) {
-                Properties props = component.getModel().getProperties();
-                Set<Map.Entry<Object, Object>> entries = props.entrySet();
-                for (Map.Entry<Object, Object> entry : entries) {
-                    String key = (String) entry.getKey();
-                    if (key.contains(component.toSearch)) {
-                        String val = (String) entry.getValue();
-                        // If the key is not a version such as a string, message, then we continue
-                        if (val.contains(" ")) {
-                            continue;
-                        }
-                        component.setVersion(val);
+                component.setParentRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
+                component.setParentPomContent(fetchContent(component.parentRepoURL));
+                component.setParentModel(populateModel(component.parentPomContent));
+                return getComponentVersion(component, true);
+            } else {
+                // Use the pom project version
+                // if the version is equal to ${project.version}
+                if (dependency.getVersion().startsWith("${project.version")) {
+                    component.setGroupId(dependency.getGroupId());
+                    component.setArtifactId(dependency.getArtifactId());
+                    // Check if there is a version defined for the project, otherwise pickup the version of the parent
+                    if (component.getModel().getVersion() == null) {
+                        component.setVersion(component.getModel().getParent().getVersion());
                         return component;
-                    }
-                }
-                // If there are no properties, then we will check if the parent contains it
-                Parent parent = component.getModel().getParent();
-                // TODO : Review code
-                // component.setParentModel(parseMavenPOM(configuration.getMavenCentralRepo(), parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
-                // TODO : To be improved
-                props = component.getModel().getProperties();
-                entries = props.entrySet();
-                for (Map.Entry<Object, Object> entry : entries) {
-                    String key = (String) entry.getKey();
-                    if (key.contains(component.toSearch)) {
-                        String val = (String) entry.getValue();
-                        // If the key is not a version such as a string, message, then we continue
-                        if (val.contains(" ")) {
-                            continue;
-                        }
-                        component.setVersion(val);
+                    } else {
+                        component.setVersion(component.getModel().getVersion());
                         return component;
                     }
                 }
 
+                // Check within the list of the properties
+                // if the version is equal to ${xxxxxx}
+                // where xxxxxx is a property
+                if (dependency.getVersion().startsWith("${")) {
+                    Properties props = component.getModel().getProperties();
+                    Set<Map.Entry<Object, Object>> entries = props.entrySet();
+                    for (Map.Entry<Object, Object> entry : entries) {
+                        String key = (String) entry.getKey();
+                        if (key.contains(component.toSearch)) {
+                            String val = (String) entry.getValue();
+                            // If the key is not a version such as a string, message, then we continue
+                            if (val.contains(" ")) {
+                                continue;
+                            }
+                            component.setVersion(val);
+                            return component;
+                        }
+                    }
+                    // If there are no properties, then we will check if the parent contains it
+                    Parent parent = component.getModel().getParent();
+                    // TODO : Review code
+                    // component.setParentModel(parseMavenPOM(configuration.getMavenCentralRepo(), parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
+                    // TODO : To be improved
+                    props = component.getModel().getProperties();
+                    entries = props.entrySet();
+                    for (Map.Entry<Object, Object> entry : entries) {
+                        String key = (String) entry.getKey();
+                        if (key.contains(component.toSearch)) {
+                            String val = (String) entry.getValue();
+                            // If the key is not a version such as a string, message, then we continue
+                            if (val.contains(" ")) {
+                                continue;
+                            }
+                            component.setVersion(val);
+                            return component;
+                        }
+                    }
+
+                }
             }
+
+            // Then the version is semantically equivalent to
+            // ...
             component.setVersion(dependency.getVersion());
             return component;
         }
