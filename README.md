@@ -5,7 +5,10 @@
 - Specify as `Application type`, `Others`
 - Name it : `snowdrop`
 - Save the `client_id` and `client_secret` within the file `~/credentials/client_secrets.json`.
-  **REMARK**: You can also download the json file from the google console and rename it
+
+  **REMARK**
+  
+  You can also download the json file from the google console and rename it
   to `~/credentials/client_secrets.json`!
 ```json
 {
@@ -26,7 +29,9 @@ java -jar ./target/maven-gsheet-1.0-SNAPSHOT-jar-with-dependencies.jar SHEET_ID
 example
 java -jar ./target/maven-gsheet-1.0-SNAPSHOT-jar-with-dependencies.jar 1YcNuI_lzruhhS4P1mIGnklSnLqfVK6SWQu1BRTP8jY4
 ```  
-**NOTE** The first time you will launch it, then you wil be redirected to the Oauth URL from where you can grant access
+**NOTE**
+
+The first time you will launch it, then you wil be redirected to the Oauth URL from where you can grant access
 to your Google account.
 Select your account and next click on the `allow` button. A new file will be created under the `./credentials` folder called
 `StoredCredential`.
