@@ -1,5 +1,9 @@
 {
   "mavenCentralRepo": "https://repo1.maven.org/maven2/",
   "mavenRedHatRepo": "https://maven.repository.redhat.com/ga",
-  "gavRange": "A1:D28"
+  "gavRange": "A1:D28",
+  "cellUpstreamVersion": "E",
+  "cellUpstreamURL": "F",
+  "cellDownstreamVersion": "H",
+  "cellDownstreamURL": "I"
 }

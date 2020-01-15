@@ -103,20 +103,27 @@ public class GSheetApplication {
                         System.out.printf("Component : %s\n", componentToSearch);
 
                         // Fetch POM file using GAV defined within the G Sheet
-                        Component component = parseMavenPOM((String) row.get(0), (String) row.get(1), (String) row.get(2));
+                        // and maven repository upstream
+                        Component component = parseMavenPOM(configuration.mavenCentralRepo, (String) row.get(0), (String) row.get(1), (String) row.get(2));
                         System.out.printf("Maven URL : %s\n", component.repoURL);
 
                         // Check if the dependency contains the component to search and get version
                         String componentVersion = getComponentVersion(component.model, componentToSearch);
                         System.out.printf("Version : %s\n", componentVersion);
 
-                        // Update the cell "E" to pass the version of the component
-                        String cellPosition = "E" + (i + 1);
+                        // Update the cell of the Component Version (upstream)
+                        String cellPosition = configuration.getCellUpstreamVersion() + (i + 1);
                         updateCells(service, cellPosition, "RAW", componentVersion);
 
-                        String cellURLPosition = "F" + (i + 1);
+                        // Update the cell of the Component URL (upstream)
+                        String cellURLPosition = configuration.getCellUpstreamURL() + (i + 1);
                         String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + componentVersion + "\")";
                         updateCells(service, cellURLPosition, "USER_ENTERED", hyperlink);
+
+                        // Do the job for Downstream Repository
+                        //component = parseMavenPOM(configuration.mavenRedHatRepo, (String) row.get(0), (String) row.get(1), (String) row.get());
+                        //System.out.printf("Maven URL : %s\n", component.repoURL);
+
                         System.out.println("========================================");
                     }
                 } catch (IndexOutOfBoundsException idx) {
@@ -216,7 +223,7 @@ public class GSheetApplication {
             // using the dependencies defined within the parent pom
             if (dependency.getVersion() == null) {
                 Parent parent = model.getParent();
-                Component component = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
+                Component component = parseMavenPOM(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
                 return getComponentVersion(component.model, componentToSearch);
             }
 
@@ -246,7 +253,7 @@ public class GSheetApplication {
                 }
                 // If there are no properties, then we will check if the parent contains it
                 Parent parent = model.getParent();
-                Component component = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
+                Component component = parseMavenPOM(configuration.getMavenCentralRepo(), parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
                 // TODO : To be improved
                 props = component.getModel().getProperties();
                 entries = props.entrySet();
@@ -268,9 +275,9 @@ public class GSheetApplication {
         return "";
     }
 
-    static Component parseMavenPOM(String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
+    static Component parseMavenPOM(String mavenRepo, String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
         MavenXpp3Reader reader = new MavenXpp3Reader();
-        String REPO = configuration.mavenCentralRepo;
+        String REPO = mavenRepo;
         URL url = new URL(REPO
                 + groupID
                 + "/"
