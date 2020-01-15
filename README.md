@@ -7,11 +7,11 @@ This java application allows to update a Google Sheet document using an `Oauth C
 
 Example 
 
-Before
+Before to run the java application
 
 ![Before](gsheet_before.png)
 
-After
+After the execution of the application
 
 ![After](gsheet_after.png)
 
