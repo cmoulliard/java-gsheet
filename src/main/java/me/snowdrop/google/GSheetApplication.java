@@ -53,7 +53,7 @@ public class GSheetApplication {
             GSHEET_ID = args[0];
         }
 
-        // Collect information such as maven repositories
+        // Collect information such as maven repositories from the json configuration file
         init();
 
         // Create the Google Sheet service able to communicate with the Sheet
@@ -114,8 +114,9 @@ public class GSheetApplication {
 
                         // Update the cell of the Component URL upstream using as text, the version and
                         // link, the url of the maven repo to access the pom file
-                        String cellURLPosition = configuration.getCellUpstreamVersion() + (i + 1);
-                        String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + component.getVersion() + "\")";
+                        String cellURLPosition = configuration.getCellUpstreamURL() + (i + 1);
+                        String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + component.version + "\")";
+
                         updateCells(service, cellURLPosition, "USER_ENTERED", hyperlink);
 
                         // Do the job for Downstream Repository
