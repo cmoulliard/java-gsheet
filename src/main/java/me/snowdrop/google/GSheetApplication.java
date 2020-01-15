@@ -1,5 +1,6 @@
 package me.snowdrop.google;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
@@ -27,6 +28,7 @@ import java.util.*;
 
 public class GSheetApplication {
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private static final String CONFIGURATION_FILE = "config.json";
 
     // Directory to store user credentials for this application.
     private static final java.io.File CREDENTIALS_FOLDER //
@@ -36,19 +38,44 @@ public class GSheetApplication {
     // Scope to access the GSheets
     private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS);
 
-    // Range to search for
-    private static String INPUT_RANGE = "A:D";
+    // Google Sheet ID
     private static String GSHEET_ID;
+
+    // configuration
+    private static Configuration configuration;
 
     public static void main(String... args) throws IOException, GeneralSecurityException, XmlPullParserException {
 
-        if(args.length == 0) {
+        if (args.length == 0) {
             System.out.println("Proper Usage is: java -jar ./maven-gsheet-1.0-SNAPSHOT-jar-with-dependencies.jar sheet_id");
             System.exit(0);
         } else {
             GSHEET_ID = args[0];
         }
 
+        // Collect information such as maven repositories
+        init();
+
+        // Create the Google Sheet service able to communicate with the Sheet
+        Sheets gSheet = createService();
+
+        // Read the Cells content of the range "A:D"
+        // For each row, parse the POM file using the repo + groupID, artifactID and Version
+        // Next, search the component using its name to find the version
+        readCells(gSheet);
+    }
+
+    static void init() throws IOException {
+        URL configURL = GSheetApplication.class.getClassLoader().getResource(CONFIGURATION_FILE);
+        if (configURL == null) {
+            throw new IllegalArgumentException(CONFIGURATION_FILE + " file not found!");
+        }
+        // Parse the configuration file to setup the parameters
+        ObjectMapper mapper = new ObjectMapper();
+        configuration = mapper.readValue(configURL,Configuration.class);
+    }
+
+    static Sheets createService() throws GeneralSecurityException, IOException {
         // Build a new authorized API client service.
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
@@ -56,17 +83,13 @@ public class GSheetApplication {
         Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
                 //.setApplicationName(APPLICATION_NAME)
                 .build();
-
-        // Read the Cells content of the range "A:D"
-        // For each row, parse the POM file using the repo + groupID, artifactID and Version
-        // Next, search the component using its name to find the version
-        readCells(service);
+        return service;
     }
 
     static void readCells(Sheets service) throws IOException, XmlPullParserException {
         // Read Cells
         ValueRange response = service.spreadsheets().values()
-                .get(GSHEET_ID, INPUT_RANGE)
+                .get(GSHEET_ID, configuration.gavRange)
                 .execute();
         List<List<Object>> values = response.getValues();
         if (values == null || values.isEmpty()) {
@@ -97,7 +120,7 @@ public class GSheetApplication {
                         System.out.println("========================================");
                     }
                 } catch (IndexOutOfBoundsException idx) {
-                    System.out.printf("No component to search is defined !!");
+                    System.out.printf("No information is defined for line : %s\n", i);
                 }
             }
         }
@@ -213,7 +236,7 @@ public class GSheetApplication {
                 for (Map.Entry<Object, Object> entry : entries) {
                     String key = (String) entry.getKey();
                     if (key.contains(componentToSearch)) {
-                        String val = (String)entry.getValue();
+                        String val = (String) entry.getValue();
                         // If the key is not a version such as a string, message, then we continue
                         if (val.contains(" ")) {
                             continue;
@@ -230,7 +253,7 @@ public class GSheetApplication {
                 for (Map.Entry<Object, Object> entry : entries) {
                     String key = (String) entry.getKey();
                     if (key.contains(componentToSearch)) {
-                        String val = (String)entry.getValue();
+                        String val = (String) entry.getValue();
                         // If the key is not a version such as a string, message, then we continue
                         if (val.contains(" ")) {
                             continue;
@@ -247,7 +270,7 @@ public class GSheetApplication {
 
     static Component parseMavenPOM(String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
         MavenXpp3Reader reader = new MavenXpp3Reader();
-        String REPO = "http://repo1.maven.org/maven2/";
+        String REPO = configuration.mavenCentralRepo;
         URL url = new URL(REPO
                 + groupID
                 + "/"
