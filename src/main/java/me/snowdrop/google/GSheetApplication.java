@@ -219,7 +219,7 @@ public class GSheetApplication {
         }
 
         for (Dependency dep : dependencies) {
-            component = searchVersion(component, dep);
+            component = searchVersion(component, dep, IsParentPom);
             if (component.getVersion() != null) {
                 return component;
             }
@@ -228,7 +228,7 @@ public class GSheetApplication {
         return component;
     }
 
-    static Component searchVersion(Component component, Dependency dependency) throws IOException, XmlPullParserException {
+    static Component searchVersion(Component component, Dependency dependency, boolean IsParentPom) throws IOException, XmlPullParserException {
         if (dependency.getArtifactId().contains(component.toSearch)) {
 
             // If the version is null, then we will search the version of the component
@@ -259,7 +259,12 @@ public class GSheetApplication {
                 // if the version is equal to ${xxxxxx}
                 // where xxxxxx is a property
                 if (dependency.getVersion().startsWith("${")) {
-                    Properties props = component.getModel().getProperties();
+                    Properties props;
+                    if (!IsParentPom) {
+                        props = component.getModel().getProperties();
+                    } else  {
+                        props = component.getParentModel().getProperties();
+                    }
                     Set<Map.Entry<Object, Object>> entries = props.entrySet();
                     for (Map.Entry<Object, Object> entry : entries) {
                         String key = (String) entry.getKey();
@@ -273,26 +278,6 @@ public class GSheetApplication {
                             return component;
                         }
                     }
-                    // If there are no properties, then we will check if the parent contains it
-                    Parent parent = component.getModel().getParent();
-                    // TODO : Review code
-                    // component.setParentModel(parseMavenPOM(configuration.getMavenCentralRepo(), parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
-                    // TODO : To be improved
-                    props = component.getModel().getProperties();
-                    entries = props.entrySet();
-                    for (Map.Entry<Object, Object> entry : entries) {
-                        String key = (String) entry.getKey();
-                        if (key.contains(component.toSearch)) {
-                            String val = (String) entry.getValue();
-                            // If the key is not a version such as a string, message, then we continue
-                            if (val.contains(" ")) {
-                                continue;
-                            }
-                            component.setVersion(val);
-                            return component;
-                        }
-                    }
-
                 }
             }
 
