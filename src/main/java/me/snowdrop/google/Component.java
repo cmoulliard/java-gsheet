@@ -6,12 +6,18 @@ import java.net.URL;
 
 public class Component {
 
-    public Model model;
     public Model parentModel;
+    public String parentPomContent;
+    public URL parentRepoURL;
+
+    public Model model;
+    public String pomContent;
     public URL repoURL;
+
     public String groupId;
     public String artifactId;
     public String version;
+
     public String toSearch;
 
     public Model getParentModel() {
@@ -22,12 +28,44 @@ public class Component {
         this.parentModel = parentModel;
     }
 
-    public String getToSearch() {
-        return toSearch;
+    public String getParentPomContent() {
+        return parentPomContent;
     }
 
-    public void setToSearch(String toSearch) {
-        this.toSearch = toSearch;
+    public void setParentPomContent(String parentPomContent) {
+        this.parentPomContent = parentPomContent;
+    }
+
+    public URL getParentRepoURL() {
+        return parentRepoURL;
+    }
+
+    public void setParentRepoURL(URL parentRepoURL) {
+        this.parentRepoURL = parentRepoURL;
+    }
+
+    public Model getModel() {
+        return model;
+    }
+
+    public void setModel(Model model) {
+        this.model = model;
+    }
+
+    public String getPomContent() {
+        return pomContent;
+    }
+
+    public void setPomContent(String pomContent) {
+        this.pomContent = pomContent;
+    }
+
+    public URL getRepoURL() {
+        return repoURL;
+    }
+
+    public void setRepoURL(URL repoURL) {
+        this.repoURL = repoURL;
     }
 
     public String getGroupId() {
@@ -54,20 +92,12 @@ public class Component {
         this.version = version;
     }
 
-    public URL getRepoURL() {
-        return repoURL;
+    public String getToSearch() {
+        return toSearch;
     }
 
-    public void setRepoURL(URL repoURL) {
-        this.repoURL = repoURL;
-    }
-
-    public Model getModel() {
-        return model;
-    }
-
-    public void setModel(Model model) {
-        this.model = model;
+    public void setToSearch(String toSearch) {
+        this.toSearch = toSearch;
     }
 
 }

@@ -103,9 +103,12 @@ public class GSheetApplication {
                     if (!component.toSearch.contentEquals("??")) {
                         System.out.printf("Component : %s\n", component.toSearch);
 
-                        // Fetch POM file using GAV defined within the G Sheet
-                        // and maven repository upstream
-                        component = parseMavenPOM(configuration.mavenCentralRepo, (String) row.get(0), (String) row.get(1), (String) row.get(2));
+                        // Fetch POM file content using
+                        // - GAV defined within the G Sheet
+                        // - maven repository where to look
+                        component.setRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, (String) row.get(0), (String) row.get(1), (String) row.get(2)));
+                        component.setPomContent(fetchContent(component.repoURL));
+                        component.setModel(populateModel(component.pomContent));
                         System.out.printf("Maven URL : %s\n", component.repoURL);
 
                         // Check if the dependency contains the component to search and get version
@@ -174,6 +177,10 @@ public class GSheetApplication {
                         .execute();
     }
 
+    static Model populateModel(String content) throws IOException, XmlPullParserException {
+        MavenXpp3Reader reader = new MavenXpp3Reader();
+        return reader.read(new StringReader(content));
+    }
     static String fetchContent(URL url) {
         java.io.Reader reader = null;
         try {
@@ -202,14 +209,14 @@ public class GSheetApplication {
         if (dependencies.size() > 0) {
             for (Dependency dep : dependencies) {
                 component = searchVersion(component, dep);
-                if (component.getVersion() != "") {
+                if (component.getVersion() != null) {
                     return component;
                 }
             }
         } else {
             for (Dependency dep : component.getParentModel().getDependencyManagement().getDependencies()) {
                 component = searchVersion(component, dep);
-                if (component.getVersion() != "") {
+                if (component.getVersion() != null) {
                     return component;
                 }
             }
@@ -223,11 +230,14 @@ public class GSheetApplication {
             // using the dependencies defined within the parent pom
             if (dependency.getVersion() == null) {
                 Parent parent = component.getModel().getParent();
-                component = parseMavenPOM(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
+                component.setRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
+                component.setPomContent(fetchContent(component.repoURL));
                 return getComponentVersion(component);
             }
 
             if (dependency.getVersion().startsWith("${project.version")) {
+                component.setGroupId(dependency.getGroupId());
+                component.setArtifactId(dependency.getArtifactId());
                 // Check if there is a version defined for the project, otherwise pickup the version of the parent
                 if (component.getModel().getVersion() == null) {
                     component.setVersion(component.getModel().getParent().getVersion());
@@ -256,7 +266,8 @@ public class GSheetApplication {
                 }
                 // If there are no properties, then we will check if the parent contains it
                 Parent parent = component.getModel().getParent();
-                component.setParentModel(parseMavenPOM(configuration.getMavenCentralRepo(), parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
+                // TODO : Review code
+                // component.setParentModel(parseMavenPOM(configuration.getMavenCentralRepo(), parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
                 // TODO : To be improved
                 props = component.getModel().getProperties();
                 entries = props.entrySet();
@@ -280,8 +291,7 @@ public class GSheetApplication {
         return component;
     }
 
-    static Component parseMavenPOM(String mavenRepo, String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
-        MavenXpp3Reader reader = new MavenXpp3Reader();
+    static URL populateMavenRepoURL(String mavenRepo, String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
         String REPO = mavenRepo;
         URL url = new URL(REPO
                 + groupID
@@ -291,11 +301,6 @@ public class GSheetApplication {
                 + version
                 + "/"
                 + artifactID + "-" + version + ".pom");
-
-        String content = fetchContent(url);
-        Component component = new Component();
-        component.setModel(reader.read(new StringReader(content)));
-        component.setRepoURL(url);
-        return component;
+        return url;
     }
 }
