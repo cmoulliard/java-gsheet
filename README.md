@@ -5,6 +5,16 @@ This java application allows to update a Google Sheet document using an `Oauth C
 - Grab the maven url and search about the version of the component using the dependencies of the pom or parent and/or properties
 - Save the version of the component like also the URL of the POM file containing it
 
+Example 
+
+Before
+
+![Before](gsheet_before.png)
+
+After
+![After](gsheet_after.png)
+
+
 ## Setup the project
 
 - Create a Google Oauth2 `client_id` and `client_secret` using the Google Developer console : `https://console.developers.google.com/apis/credentials`
