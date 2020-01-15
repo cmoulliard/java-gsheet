@@ -100,34 +100,37 @@ public class GSheetApplication {
                 try {
                     Component component = new Component();
                     component.toSearch = (String) row.get(3);
-                    if (!component.toSearch.contentEquals("??")) {
-                        System.out.printf("Component : %s\n", component.toSearch);
 
-                        // Fetch POM file content using
-                        // - GAV defined within the G Sheet
-                        // - maven repository where to look
-                        component.setRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, (String) row.get(0), (String) row.get(1), (String) row.get(2)));
-                        component.setPomContent(fetchContent(component.repoURL));
-                        component.setModel(populateModel(component.pomContent));
-                        System.out.printf("Maven URL : %s\n", component.repoURL);
+                    if ((String)row.get(2) != "") {
+                        if (!component.toSearch.contentEquals("??")) {
+                            System.out.printf("Component : %s\n", component.toSearch);
 
-                        // Check if the dependency contains the component to search and get the version
-                        // Scan first the pom
-                        component = getComponentVersion(component, false);
-                        System.out.printf("Version : %s\n", component.version);
+                            // Fetch POM file content using
+                            // - GAV defined within the G Sheet
+                            // - maven repository where to look
+                            component.setRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, (String) row.get(0), (String) row.get(1), (String) row.get(2)));
+                            component.setPomContent(fetchContent(component.repoURL));
+                            component.setModel(populateModel(component.pomContent));
+                            System.out.printf("Maven URL : %s\n", component.repoURL);
 
-                        // Update the cell of the Component URL upstream using as text, the version and
-                        // link, the url of the maven repo to access the pom file
-                        String cellURLPosition = configuration.getCellUpstreamURL() + (i + 1);
-                        String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + component.version + "\")";
+                            // Check if the dependency contains the component to search and get the version
+                            // Scan first the pom
+                            component = getComponentVersion(component, false);
+                            System.out.printf("Version : %s\n", component.version);
 
-                        updateCells(service, cellURLPosition, "USER_ENTERED", hyperlink);
+                            // Update the cell of the Component URL upstream using as text, the version and
+                            // link, the url of the maven repo to access the pom file
+                            String cellURLPosition = configuration.getCellUpstreamURL() + (i + 1);
+                            String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + component.version + "\")";
 
-                        // Do the job for Downstream Repository
-                        //component = parseMavenPOM(configuration.mavenRedHatRepo, (String) row.get(0), (String) row.get(1), (String) row.get());
-                        //System.out.printf("Maven URL : %s\n", component.repoURL);
+                            updateCells(service, cellURLPosition, "USER_ENTERED", hyperlink);
 
-                        System.out.println("========================================");
+                            // Do the job for Downstream Repository
+                            //component = parseMavenPOM(configuration.mavenRedHatRepo, (String) row.get(0), (String) row.get(1), (String) row.get());
+                            //System.out.printf("Maven URL : %s\n", component.repoURL);
+
+                            System.out.println("========================================");
+                        }
                     }
                 } catch (IndexOutOfBoundsException idx) {
                     System.out.printf("No information is defined for line : %s\n", i);
@@ -259,10 +262,13 @@ public class GSheetApplication {
                 // if the version is equal to ${xxxxxx}
                 // where xxxxxx is a property
                 if (dependency.getVersion().startsWith("${")) {
-                    Properties props;
-                    if (!IsParentPom) {
-                        props = component.getModel().getProperties();
-                    } else  {
+                    Properties props = component.getModel().getProperties();
+                    // If there are no properties within the pom, then we will fetch them from the parent
+                    if (props.size() <= 0) {
+                        Parent parent = component.getModel().getParent();
+                        component.setParentRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
+                        component.setParentPomContent(fetchContent(component.parentRepoURL));
+                        component.setParentModel(populateModel(component.parentPomContent));
                         props = component.getParentModel().getProperties();
                     }
                     Set<Map.Entry<Object, Object>> entries = props.entrySet();
