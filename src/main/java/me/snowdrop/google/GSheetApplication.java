@@ -72,7 +72,7 @@ public class GSheetApplication {
         }
         // Parse the configuration file to setup the parameters
         ObjectMapper mapper = new ObjectMapper();
-        configuration = mapper.readValue(configURL,Configuration.class);
+        configuration = mapper.readValue(configURL, Configuration.class);
     }
 
     static Sheets createService() throws GeneralSecurityException, IOException {
@@ -98,29 +98,39 @@ public class GSheetApplication {
             for (int i = 1; i < values.size(); i++) {
                 List<Object> row = values.get(i);
                 try {
-                    String componentToSearch = (String) row.get(3);
-                    if (!componentToSearch.contentEquals("??")) {
-                        System.out.printf("Component : %s\n", componentToSearch);
+                    Component component = new Component();
+                    component.toSearch = (String) row.get(3);
 
-                        // Fetch POM file using GAV defined within the G Sheet
-                        // and maven repository upstream
-                        Component component = parseMavenPOM(configuration.mavenCentralRepo, (String) row.get(0), (String) row.get(1), (String) row.get(2));
-                        System.out.printf("Maven URL : %s\n", component.repoURL);
+                    if ((String) row.get(2) != "") {
+                        if (!component.toSearch.contentEquals("??")) {
+                            System.out.printf("Component : %s\n", component.toSearch);
 
-                        // Check if the dependency contains the component to search and get version
-                        String componentVersion = getComponentVersion(component.model, componentToSearch);
-                        System.out.printf("Version : %s\n", componentVersion);
+                            // Fetch POM file content using
+                            // - GAV defined within the G Sheet
+                            // - maven repository where to look
+                            component.setRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, (String) row.get(0), (String) row.get(1), (String) row.get(2)));
+                            component.setPomContent(fetchContent(component.repoURL));
+                            component.setModel(populateModel(component.pomContent));
+                            System.out.printf("Maven URL : %s\n", component.repoURL);
 
-                        // Update the cell of the Component URL (upstream)
-                        String cellURLPosition = configuration.getCellUpstreamURL() + (i + 1);
-                        String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + componentVersion + "\")";
-                        updateCells(service, cellURLPosition, "USER_ENTERED", hyperlink);
+                            // Check if the dependency contains the component to search and get the version
+                            // Scan first the pom
+                            component = getComponentVersion(component, false);
+                            System.out.printf("Version : %s\n", component.version);
 
-                        // Do the job for Downstream Repository
-                        //component = parseMavenPOM(configuration.mavenRedHatRepo, (String) row.get(0), (String) row.get(1), (String) row.get());
-                        //System.out.printf("Maven URL : %s\n", component.repoURL);
+                            // Update the cell of the Component URL upstream using as text, the version and
+                            // link, the url of the maven repo to access the pom file
+                            String cellURLPosition = configuration.getCellUpstreamURL() + (i + 1);
+                            String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + component.version + "\")";
 
-                        System.out.println("========================================");
+                            updateCells(service, cellURLPosition, "USER_ENTERED", hyperlink);
+
+                            // Do the job for Downstream Repository
+                            //component = parseMavenPOM(configuration.mavenRedHatRepo, (String) row.get(0), (String) row.get(1), (String) row.get());
+                            //System.out.printf("Maven URL : %s\n", component.repoURL);
+
+                            System.out.println("========================================");
+                        }
                     }
                 } catch (IndexOutOfBoundsException idx) {
                     System.out.printf("No information is defined for line : %s\n", i);
@@ -171,6 +181,11 @@ public class GSheetApplication {
                         .execute();
     }
 
+    static Model populateModel(String content) throws IOException, XmlPullParserException {
+        MavenXpp3Reader reader = new MavenXpp3Reader();
+        return reader.read(new StringReader(content));
+    }
+
     static String fetchContent(URL url) {
         java.io.Reader reader = null;
         try {
@@ -190,89 +205,97 @@ public class GSheetApplication {
         }
     }
 
-    static String getComponentVersion(Model model, String componentToSearch) throws IOException, XmlPullParserException {
-        List<Dependency> dependencies = model.getDependencies();
-        String result;
+    static Component getComponentVersion(Component component, boolean IsParentPom) throws IOException, XmlPullParserException {
+        Model model;
+        List<Dependency> dependencies;
 
-        // Test if we have dependencies, otherwise use the dependencies delcared within the dependencyManagement section
-        if (dependencies.size() > 0) {
-            for (Dependency dep : dependencies) {
-                result = searchVersion(model, dep, componentToSearch);
-                if (result != "") {
-                    return result;
-                }
-            }
+        if (!IsParentPom) {
+            model = component.getModel();
         } else {
-            for (Dependency dep : model.getDependencyManagement().getDependencies()) {
-                result = searchVersion(model, dep, componentToSearch);
-                if (result != "") {
-                    return result;
-                }
+            model = component.getParentModel();
+        }
+
+        if (model.getDependencies().size() > 0) {
+            dependencies = model.getDependencies();
+        } else {
+            dependencies = model.getDependencyManagement().getDependencies();
+        }
+
+        for (Dependency dep : dependencies) {
+            component = searchVersion(component, dep, IsParentPom);
+            if (component.getVersion() != null) {
+                return component;
             }
         }
-        return "";
+
+        return component;
     }
 
-    static String searchVersion(Model model, Dependency dependency, String componentToSearch) throws IOException, XmlPullParserException {
-        if (dependency.getArtifactId().contains(componentToSearch)) {
+    static Component searchVersion(Component component, Dependency dependency, boolean IsParentPom) throws IOException, XmlPullParserException {
+        if (dependency.getArtifactId().contains(component.toSearch)) {
+
             // If the version is null, then we will search the version of the component
-            // using the dependencies defined within the parent pom
+            // using the parent pom
             if (dependency.getVersion() == null) {
-                Parent parent = model.getParent();
-                Component component = parseMavenPOM(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
-                return getComponentVersion(component.model, componentToSearch);
-            }
-
-            if (dependency.getVersion().startsWith("${project.version")) {
-                // Check if there is a version defined for the project, otherwise pickup the version of the parent
-                if (model.getVersion() == null) {
-                    return model.getParent().getVersion();
-                } else {
-                    return model.getVersion();
-                }
-            }
-
-            // We will check if we have a version or ${}"
-            if (dependency.getVersion().startsWith("${")) {
-                Properties props = model.getProperties();
-                Set<Map.Entry<Object, Object>> entries = props.entrySet();
-                for (Map.Entry<Object, Object> entry : entries) {
-                    String key = (String) entry.getKey();
-                    if (key.contains(componentToSearch)) {
-                        String val = (String) entry.getValue();
-                        // If the key is not a version such as a string, message, then we continue
-                        if (val.contains(" ")) {
-                            continue;
-                        }
-                        return val;
-                    }
-                }
-                // If there are no properties, then we will check if the parent contains it
-                Parent parent = model.getParent();
-                Component component = parseMavenPOM(configuration.getMavenCentralRepo(), parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
-                // TODO : To be improved
-                props = component.getModel().getProperties();
-                entries = props.entrySet();
-                for (Map.Entry<Object, Object> entry : entries) {
-                    String key = (String) entry.getKey();
-                    if (key.contains(componentToSearch)) {
-                        String val = (String) entry.getValue();
-                        // If the key is not a version such as a string, message, then we continue
-                        if (val.contains(" ")) {
-                            continue;
-                        }
-                        return val;
+                Parent parent = component.getModel().getParent();
+                component.setParentRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
+                component.setParentPomContent(fetchContent(component.parentRepoURL));
+                component.setParentModel(populateModel(component.parentPomContent));
+                return getComponentVersion(component, true);
+            } else {
+                // Use the pom project version
+                // if the version is equal to ${project.version}
+                if (dependency.getVersion().startsWith("${project.version")) {
+                    component.setGroupId(dependency.getGroupId());
+                    component.setArtifactId(dependency.getArtifactId());
+                    // Check if there is a version defined for the project, otherwise pickup the version of the parent
+                    if (component.getModel().getVersion() == null) {
+                        component.setVersion(component.getModel().getParent().getVersion());
+                        return component;
+                    } else {
+                        component.setVersion(component.getModel().getVersion());
+                        return component;
                     }
                 }
 
+                // Check within the list of the properties
+                // if the version is equal to ${xxxxxx}
+                // where xxxxxx is a property
+                if (dependency.getVersion().startsWith("${")) {
+                    Properties props = component.getModel().getProperties();
+                    // If there are no properties within the pom, then we will fetch them from the parent
+                    if (props.size() <= 0) {
+                        Parent parent = component.getModel().getParent();
+                        component.setParentRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
+                        component.setParentPomContent(fetchContent(component.parentRepoURL));
+                        component.setParentModel(populateModel(component.parentPomContent));
+                        props = component.getParentModel().getProperties();
+                    }
+                    Set<Map.Entry<Object, Object>> entries = props.entrySet();
+                    for (Map.Entry<Object, Object> entry : entries) {
+                        String key = (String) entry.getKey();
+                        if (key.contains(component.toSearch)) {
+                            String val = (String) entry.getValue();
+                            // If the key is not a version such as a string, message, then we continue
+                            if (val.contains(" ")) {
+                                continue;
+                            }
+                            component.setVersion(val);
+                            return component;
+                        }
+                    }
+                }
             }
-            return dependency.getVersion();
+
+            // Then the version is semantically equivalent to
+            // ...
+            component.setVersion(dependency.getVersion());
+            return component;
         }
-        return "";
+        return component;
     }
 
-    static Component parseMavenPOM(String mavenRepo, String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
-        MavenXpp3Reader reader = new MavenXpp3Reader();
+    static URL populateMavenRepoURL(String mavenRepo, String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
         String REPO = mavenRepo;
         URL url = new URL(REPO
                 + groupID
@@ -282,11 +305,6 @@ public class GSheetApplication {
                 + version
                 + "/"
                 + artifactID + "-" + version + ".pom");
-
-        String content = fetchContent(url);
-        Component component = new Component();
-        component.setModel(reader.read(new StringReader(content)));
-        component.setRepoURL(url);
-        return component;
+        return url;
     }
 }
