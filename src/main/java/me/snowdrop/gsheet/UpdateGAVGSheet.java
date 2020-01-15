@@ -66,20 +66,31 @@ public class UpdateGAVGSheet {
         } else {
             for (int i = 1; i < values.size(); i++) {
                 List<Object> row = values.get(i);
+                try {
+                    String componentToSearch = (String) row.get(3);
+                    if (!componentToSearch.contentEquals("??")) {
+                        System.out.printf("Component : %s\n", componentToSearch);
 
-                String componentToSearch = (String) row.get(3);
-                System.out.printf("Component : %s\n", componentToSearch);
+                        // Fetch POM file using GAV defined within the G Sheet
+                        Component component = parseMavenPOM((String) row.get(0), (String) row.get(1), (String) row.get(2));
+                        System.out.printf("Maven URL : %s\n", component.repoURL);
 
-                // Fetch POM file using GAV defined within the G Sheet
-                Model model = parseMavenPOM((String) row.get(0), (String) row.get(1), (String) row.get(2));
+                        // Check if the dependency contains the component to search and get version
+                        String componentVersion = getComponentVersion(component.model, componentToSearch);
+                        System.out.printf("Version : %s\n", componentVersion);
 
-                // Check if the dependency contains the component to search and get version
-                String componentVersion = getComponentVersion(model, componentToSearch);
-                System.out.printf("Version : %s\n", componentVersion);
+                        // Update the cell "E" to pass the version of the component
+                        String cellPosition = "E" + (i + 1);
+                        updateCells(service, cellPosition, "RAW", componentVersion);
 
-                // Update the cell "E" to pass the version of the component
-                String cellPosition = "E" + (i + 1);
-                updateCells(service, cellPosition, componentVersion);
+                        String cellURLPosition = "F" + (i + 1);
+                        String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + componentVersion + "\")";
+                        updateCells(service, cellURLPosition, "USER_ENTERED", hyperlink);
+                        System.out.println("========================================");
+                    }
+                } catch (IndexOutOfBoundsException idx) {
+                    System.out.printf("No component to search is defined !!");
+                }
             }
         }
     }
@@ -109,7 +120,7 @@ public class UpdateGAVGSheet {
         return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("me");
     }
 
-    static void updateCells(Sheets service, String cellToUpdate, String version) throws IOException {
+    static void updateCells(Sheets service, String cellToUpdate, String valueInputOption, String version) throws IOException {
         List<List<Object>> writeData = new ArrayList<>();
         List<Object> dataRow = new ArrayList<>();
         dataRow.add(version);
@@ -122,9 +133,8 @@ public class UpdateGAVGSheet {
         UpdateValuesResponse result =
                 service.spreadsheets().values()
                         .update(GSHEET_ID, outputRange, body)
-                        .setValueInputOption("RAW")
+                        .setValueInputOption(valueInputOption)
                         .execute();
-        System.out.println("========================================");
     }
 
     static String fetchContent(URL url) {
@@ -175,8 +185,8 @@ public class UpdateGAVGSheet {
             // using the dependencies defined within the parent pom
             if (dependency.getVersion() == null) {
                 Parent parent = model.getParent();
-                Model parentModel = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
-                return getComponentVersion(parentModel, componentToSearch);
+                Component component = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
+                return getComponentVersion(component.model, componentToSearch);
             }
 
             if (dependency.getVersion().startsWith("${project.version")) {
@@ -205,9 +215,9 @@ public class UpdateGAVGSheet {
                 }
                 // If there are no properties, then we will check if the parent contains it
                 Parent parent = model.getParent();
-                Model parentModel = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
+                Component component = parseMavenPOM(parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion());
                 // TODO : To be improved
-                props = parentModel.getProperties();
+                props = component.getModel().getProperties();
                 entries = props.entrySet();
                 for (Map.Entry<Object, Object> entry : entries) {
                     String key = (String) entry.getKey();
@@ -227,7 +237,7 @@ public class UpdateGAVGSheet {
         return "";
     }
 
-    static Model parseMavenPOM(String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
+    static Component parseMavenPOM(String groupID, String artifactID, String version) throws IOException, XmlPullParserException {
         MavenXpp3Reader reader = new MavenXpp3Reader();
         String REPO = "http://repo1.maven.org/maven2/";
         URL url = new URL(REPO
@@ -240,6 +250,9 @@ public class UpdateGAVGSheet {
                 + artifactID + "-" + version + ".pom");
 
         String content = fetchContent(url);
-        return reader.read(new StringReader(content));
+        Component component = new Component();
+        component.setModel(reader.read(new StringReader(content)));
+        component.setRepoURL(url);
+        return component;
     }
 }
