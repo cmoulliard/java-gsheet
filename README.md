@@ -12,6 +12,7 @@ Before
 ![Before](gsheet_before.png)
 
 After
+
 ![After](gsheet_after.png)
 
 
