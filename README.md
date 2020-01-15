@@ -17,7 +17,7 @@
   **REMARK** : You can also download the json file from the google console and rename it
   to `~/credentials/client_secrets.json`!
 
-## Use the Google GSheet Application to update the data
+## Build and launch the application
 
 - Build the java application using the command `mvn clean package`
 - Launch it locally
