@@ -3,7 +3,7 @@
   "mavenRedHatRepo": "https://maven.repository.redhat.com/ga",
   "gavRange": "A1:D28",
   "cellUpstreamVersion": "E",
-  "cellUpstreamURL": "F",
+  "cellUpstreamURL": "E",
   "cellDownstreamVersion": "H",
   "cellDownstreamURL": "I"
 }

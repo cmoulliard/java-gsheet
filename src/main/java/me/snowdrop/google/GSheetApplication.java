@@ -53,7 +53,7 @@ public class GSheetApplication {
             GSHEET_ID = args[0];
         }
 
-        // Collect information such as maven repositories
+        // Collect information such as maven repositories from the json configuration file
         init();
 
         // Create the Google Sheet service able to communicate with the Sheet
@@ -110,10 +110,6 @@ public class GSheetApplication {
                         // Check if the dependency contains the component to search and get version
                         String componentVersion = getComponentVersion(component.model, componentToSearch);
                         System.out.printf("Version : %s\n", componentVersion);
-
-                        // Update the cell of the Component Version (upstream)
-                        String cellPosition = configuration.getCellUpstreamVersion() + (i + 1);
-                        updateCells(service, cellPosition, "RAW", componentVersion);
 
                         // Update the cell of the Component URL (upstream)
                         String cellURLPosition = configuration.getCellUpstreamURL() + (i + 1);
