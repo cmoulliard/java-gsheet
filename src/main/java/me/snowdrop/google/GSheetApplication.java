@@ -101,7 +101,7 @@ public class GSheetApplication {
                     Component component = new Component();
                     component.toSearch = (String) row.get(3);
 
-                    if ((String)row.get(2) != "") {
+                    if ((String) row.get(2) != "") {
                         if (!component.toSearch.contentEquals("??")) {
                             System.out.printf("Component : %s\n", component.toSearch);
 
