@@ -1,4 +1,4 @@
-package me.snowdrop.gsheet;
+package me.snowdrop.google;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
@@ -25,7 +25,7 @@ import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.util.*;
 
-public class UpdateGAVGSheet {
+public class GSheetApplication {
     private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
     // Directory to store user credentials for this application.
@@ -36,11 +36,19 @@ public class UpdateGAVGSheet {
     // Scope to access the GSheets
     private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS);
 
-    // Sheet ID, Range to search for
-    private static String GSHEET_ID = "1YcNuI_lzruhhS4P1mIGnklSnLqfVK6SWQu1BRTP8jY4";
+    // Range to search for
     private static String INPUT_RANGE = "A:D";
+    private static String GSHEET_ID;
 
     public static void main(String... args) throws IOException, GeneralSecurityException, XmlPullParserException {
+
+        if(args.length == 0) {
+            System.out.println("Proper Usage is: java -jar ./maven-gsheet-1.0-SNAPSHOT-jar-with-dependencies.jar sheet_id");
+            System.exit(0);
+        } else {
+            GSHEET_ID = args[0];
+        }
+
         // Build a new authorized API client service.
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 

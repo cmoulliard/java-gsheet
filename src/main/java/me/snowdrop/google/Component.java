@@ -1,4 +1,4 @@
-package me.snowdrop.gsheet;
+package me.snowdrop.google;
 
 import org.apache.maven.model.Model;
 

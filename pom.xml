@@ -54,7 +54,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>me.snowdrop.gsheet.UpdateGAVGSheet</mainClass>
+                            <mainClass>me.snowdrop.google.GSheetApplication</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -72,7 +72,7 @@
                         <configuration>
                             <archive>
                                 <manifest>
-                                    <mainClass>me.snowdrop.gsheet.UpdateGAVGSheet</mainClass>
+                                    <mainClass>me.snowdrop.google.GSheetApplication</mainClass>
                                 </manifest>
                             </archive>
                             <descriptorRefs>

@@ -20,9 +20,16 @@
 - Build the java application using the command `mvn package`
 - Launch it locally
 ```bash
-java -jar ./target/maven-gsheet-1.0-SNAPSHOT-jar-with-dependencies.jar
-```    
+java -jar ./target/maven-gsheet-1.0-SNAPSHOT-jar-with-dependencies.jar SHEET_ID
 
+example
+java -jar ./target/maven-gsheet-1.0-SNAPSHOT-jar-with-dependencies.jar 1YcNuI_lzruhhS4P1mIGnklSnLqfVK6SWQu1BRTP8jY4
+```  
+**NOTE** The first you will launch it, then you wil be redirected to the Oauth URL from where you can grant access
+to your Google account. Select your account and next click on the `allow` button. A new file will be created under the `./credentials` folder called
+`StoredCredential`.
+
+ 
 ## Useful links
 
 - [GoogleLibs](https://developers.google.com/api-client-library/java/google-api-java-client/setup) for Java
