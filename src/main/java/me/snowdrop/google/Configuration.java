@@ -5,41 +5,41 @@ public class Configuration {
     public String mavenCentralRepo;
     public String mavenRedHatRepo;
     public String gavRange;
-    public String cellUpstreamVersion;
-    public String cellUpstreamURL;
-    public String cellDownstreamVersion;
-    public String cellDownstreamURL;
+    public String cellUpPomURL;
+    public String cellUpComponentURL;
+    public String cellDownPomURL;
+    public String cellDownComponentURL;
 
-    public String getCellUpstreamURL() {
-        return cellUpstreamURL;
+    public String getCellUpPomURL() {
+        return cellUpPomURL;
     }
 
-    public void setCellUpstreamURL(String cellUpstreamURL) {
-        this.cellUpstreamURL = cellUpstreamURL;
+    public void setCellUpPomURL(String cellUpPomURL) {
+        this.cellUpPomURL = cellUpPomURL;
     }
 
-    public String getCellDownstreamVersion() {
-        return cellDownstreamVersion;
+    public String getCellUpComponentURL() {
+        return cellUpComponentURL;
     }
 
-    public void setCellDownstreamVersion(String cellDownstreamVersion) {
-        this.cellDownstreamVersion = cellDownstreamVersion;
+    public void setCellUpComponentURL(String cellUpComponentURL) {
+        this.cellUpComponentURL = cellUpComponentURL;
     }
 
-    public String getCellDownstreamURL() {
-        return cellDownstreamURL;
+    public String getCellDownPomURL() {
+        return cellDownPomURL;
     }
 
-    public void setCellDownstreamURL(String cellDownstreamURL) {
-        this.cellDownstreamURL = cellDownstreamURL;
+    public void setCellDownPomURL(String cellDownPomURL) {
+        this.cellDownPomURL = cellDownPomURL;
     }
 
-    public String getCellUpstreamVersion() {
-        return cellUpstreamVersion;
+    public String getCellDownComponentURL() {
+        return cellDownComponentURL;
     }
 
-    public void setCellUpstreamVersion(String cellUpstreamVersion) {
-        this.cellUpstreamVersion = cellUpstreamVersion;
+    public void setCellDownComponentURL(String cellDownComponentURL) {
+        this.cellDownComponentURL = cellDownComponentURL;
     }
 
     public String getGavRange() {

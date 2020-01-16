@@ -99,7 +99,7 @@ public class GSheetApplication {
                 List<Object> row = values.get(i);
                 try {
                     Component component = new Component();
-                    component.toSearch = (String) row.get(3);
+                    component.toSearch = (String) row.get(4);
 
                     if ((String) row.get(2) != "") {
                         if (!component.toSearch.contentEquals("??")) {
@@ -118,16 +118,26 @@ public class GSheetApplication {
                             component = getComponentVersion(component, false);
                             System.out.printf("Version : %s\n", component.version);
 
-                            // Update the cell of the Component URL upstream using as text, the version and
-                            // link, the url of the maven repo to access the pom file
-                            String cellURLPosition = configuration.getCellUpstreamURL() + (i + 1);
-                            String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + component.version + "\")";
+                            // Update the cell of the Component version using as text:
+                            // - The version of the component as defined within the starter,
+                            // - The Url of the maven repo to access the pom file of the starter packaging the component
+                            String cellPosition = configuration.getCellUpPomURL() + (i + 1);
+                            String hyperlink = "=HYPERLINK(\"" + component.getRepoURL().toString() + "\",\"" + (String)row.get(2) + "\")";
+                            updateCells(service, cellPosition, "USER_ENTERED", hyperlink);
 
-                            updateCells(service, cellURLPosition, "USER_ENTERED", hyperlink);
+                            // Update the upstream cell of the Component using as text:
+                            // - The version of the component,
+                            // - The Url of the maven repo to access the pom file of the component, starter
+                            cellPosition = configuration.getCellUpComponentURL() + (i + 1);
+                            hyperlink = "=HYPERLINK(\"" + populateMavenRepoURL(configuration.mavenCentralRepo,component.groupId.replaceAll("\\.", "/"),component.getArtifactId(),component.version) + "\",\"" + component.version + "\")";
+                            updateCells(service, cellPosition, "USER_ENTERED", hyperlink);
 
-                            // Do the job for Downstream Repository
-                            //component = parseMavenPOM(configuration.mavenRedHatRepo, (String) row.get(0), (String) row.get(1), (String) row.get());
-                            //System.out.printf("Maven URL : %s\n", component.repoURL);
+                            // Update the downstream cell of the Component using as text:
+                            // - The version of the component,
+                            // - The Url of the MRRC repo to access the pom file of the component, starter
+                            cellPosition = configuration.getCellDownComponentURL() + (i + 1);
+                            hyperlink = "=HYPERLINK(\"" + populateMavenRepoURL(configuration.mavenRedHatRepo,component.groupId.replaceAll("\\.", "/"),component.getArtifactId(),(String)row.get(6)) + "\",\"" + (String)row.get(6) + "\")";
+                            updateCells(service, cellPosition, "USER_ENTERED", hyperlink);
 
                             System.out.println("========================================");
                         }
@@ -233,6 +243,15 @@ public class GSheetApplication {
 
     static Component searchVersion(Component component, Dependency dependency, boolean IsParentPom) throws IOException, XmlPullParserException {
         if (dependency.getArtifactId().contains(component.toSearch)) {
+            // If there is a matching, then we can set the GroupId, ArtifactId
+            // We check first if the groupId exists.
+            // Otherwise, we will pick up the groupId from the parent
+            if (dependency.getGroupId().startsWith("${")) {
+                component.setGroupId(component.model.getParent().getGroupId());
+            } else {
+                component.setGroupId(dependency.getGroupId());
+            }
+            component.setArtifactId(dependency.getArtifactId());
 
             // If the version is null, then we will search the version of the component
             // using the parent pom
@@ -246,8 +265,6 @@ public class GSheetApplication {
                 // Use the pom project version
                 // if the version is equal to ${project.version}
                 if (dependency.getVersion().startsWith("${project.version")) {
-                    component.setGroupId(dependency.getGroupId());
-                    component.setArtifactId(dependency.getArtifactId());
                     // Check if there is a version defined for the project, otherwise pickup the version of the parent
                     if (component.getModel().getVersion() == null) {
                         component.setVersion(component.getModel().getParent().getVersion());
