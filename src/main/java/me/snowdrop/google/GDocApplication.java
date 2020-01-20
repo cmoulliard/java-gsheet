@@ -12,7 +12,7 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.docs.v1.Docs;
 import com.google.api.services.docs.v1.DocsScopes;
-import com.google.api.services.docs.v1.model.Document;
+import com.google.api.services.docs.v1.model.*;
 import com.google.api.services.sheets.v4.SheetsScopes;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 
@@ -53,8 +53,21 @@ public class GDocApplication {
                 .get(GDOC_ID)
                 .execute();
         String title = response.getTitle();
-
         System.out.printf("The title of the doc is: %s\n", title);
+
+        // We will try to append text
+        List<Request> requests = new ArrayList<>();
+        requests.add(new Request()
+                .setInsertText(new InsertTextRequest()
+                        .setText("Item One\n")
+                        // TODO: Update this part to append text at a specific location !!
+                        .setLocation(new Location().setIndex(50))));
+        BatchUpdateDocumentRequest content = new BatchUpdateDocumentRequest()
+                .setRequests(requests);
+        service.documents()
+                .batchUpdate(GDOC_ID,content)
+                .execute();
+        System.out.printf("Document updated\n");
     }
 
     static Docs createService() throws GeneralSecurityException, IOException {
