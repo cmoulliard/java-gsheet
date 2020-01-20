@@ -35,6 +35,9 @@ After the execution of the application
   **REMARK** : You can also download the json file from the google console and rename it
   to `~/credentials/client_secrets.json`!
 
+  **IMPORTANT** : If you get an `401` unauthorized error, this is most probably due to the fact that the Library 
+  of `Gsheets` or `GDocs` has not been enable from the Google developer console. They can be enabled/disabled from this url by example : https://console.developers.google.com/apis/library/docs.googleapis.com   
+
 ## Build and launch the application
 
 - Build the java application using the command `mvn clean package`
