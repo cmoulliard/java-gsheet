@@ -116,7 +116,7 @@ public class GSheetApplication {
                             // Check if the dependency contains the component to search and get the version
                             // Scan first the pom
                             component = getComponentVersion(component, false);
-                            System.out.printf("Version : %s\n", component.version);
+                            System.out.printf("Upstream version : %s\n", component.version);
 
                             // Update the cell of the Component version using as text:
                             // - The version of the component as defined within the starter,
