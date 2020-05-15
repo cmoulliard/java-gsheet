@@ -1,7 +1,9 @@
 {
+  "isSnapshot": "No",
   "mavenCentralRepo": "https://repo1.maven.org/maven2/",
+  "mavenSpringSnapshotRepo": "https://repo.spring.io/libs-snapshot/",
   "mavenRedHatRepo": "https://maven.repository.redhat.com/ga/",
-  "gavRange": "A1:H28",
+  "gavRange": "Sheet1!A1:H28",
   "cellUpPomURL": "D",
   "cellUpComponentURL": "F",
   "cellDownPomURL": "",

@@ -6,6 +6,8 @@ import java.net.URL;
 
 public class Component {
 
+    public Model bomModel;
+
     public Model parentModel;
     public String parentPomContent;
     public URL parentRepoURL;
@@ -22,6 +24,14 @@ public class Component {
 
     public Model getParentModel() {
         return parentModel;
+    }
+
+    public Model getBomModel() {
+        return bomModel;
+    }
+
+    public void setBomModel(Model bomModel) {
+        this.bomModel = bomModel;
     }
 
     public void setParentModel(Model parentModel) {

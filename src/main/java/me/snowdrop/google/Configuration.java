@@ -2,13 +2,23 @@ package me.snowdrop.google;
 
 public class Configuration {
 
+    public String isSnapshot;
     public String mavenCentralRepo;
+    public String mavenSpringSnapshotRepo;
     public String mavenRedHatRepo;
     public String gavRange;
     public String cellUpPomURL;
     public String cellUpComponentURL;
     public String cellDownPomURL;
     public String cellDownComponentURL;
+
+    public String getIsSnapshot() {
+        return isSnapshot;
+    }
+
+    public void setIsSnapshot(String isSnapshot) {
+        this.isSnapshot = isSnapshot;
+    }
 
     public String getCellUpPomURL() {
         return cellUpPomURL;
@@ -57,6 +67,15 @@ public class Configuration {
     public void setMavenCentralRepo(String mavenCentralRepo) {
         this.mavenCentralRepo = mavenCentralRepo;
     }
+
+    public String getMavenSpringSnapshotRepo() {
+        return mavenSpringSnapshotRepo;
+    }
+
+    public void setMavenSpringSnapshotRepo(String mavenSpringSnapshotRepo) {
+        this.mavenSpringSnapshotRepo = mavenSpringSnapshotRepo;
+    }
+
 
     public String getMavenRedHatRepo() {
         return mavenRedHatRepo;

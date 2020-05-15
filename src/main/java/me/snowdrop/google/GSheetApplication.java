@@ -16,6 +16,7 @@ import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.api.services.sheets.v4.model.UpdateValuesResponse;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import org.apache.maven.model.Dependency;
+import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Parent;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
@@ -44,6 +45,11 @@ public class GSheetApplication {
     // configuration
     private static Configuration configuration;
 
+    private static String mavenRepo;
+
+    private static String SpringBootDependenciesGroupId = "org.springframework.boot";
+    private static String SpringBootDependenciesArtifactId = "spring-boot-dependencies";
+
     public static void main(String... args) throws IOException, GeneralSecurityException, XmlPullParserException {
 
         if (args.length == 0) {
@@ -55,6 +61,13 @@ public class GSheetApplication {
 
         // Collect information such as maven repositories from the json configuration file
         init();
+
+        // Check if we will parse the information from the Snapshot maven repo or not
+        if (configuration.isSnapshot.equals("Yes")) {
+            mavenRepo = configuration.mavenSpringSnapshotRepo;
+        } else {
+            mavenRepo = configuration.mavenCentralRepo;
+        }
 
         // Create the Google Sheet service able to communicate with the Sheet
         Sheets gSheet = createService();
@@ -108,10 +121,25 @@ public class GSheetApplication {
                             // Fetch POM file content using
                             // - GAV defined within the G Sheet
                             // - maven repository where to look
-                            component.setRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, (String) row.get(0), (String) row.get(1), (String) row.get(2)));
+                            component.setRepoURL(populateMavenRepoURL(mavenRepo, (String) row.get(0), (String) row.get(1), (String) row.get(2)));
                             component.setPomContent(fetchContent(component.repoURL));
                             component.setModel(populateModel(component.pomContent));
                             System.out.printf("Maven URL : %s\n", component.repoURL);
+
+                            // Check if there is SB BOM dependencies
+                            DependencyManagement dependencyManagement = component.getModel().getDependencyManagement();
+                            if (dependencyManagement!= null && dependencyManagement.getDependencies().size() > 0) {
+                                for (Dependency dep : dependencyManagement.getDependencies()) {
+                                    if (dep.getGroupId().equals(SpringBootDependenciesGroupId) && dep.getArtifactId().equals(SpringBootDependenciesArtifactId)) {
+                                        // Get BOM Dependencies
+                                        Component bomComponent = new Component();
+                                        bomComponent.setRepoURL(populateMavenRepoURL(mavenRepo, SpringBootDependenciesGroupId.replaceAll("\\.", "/"), SpringBootDependenciesArtifactId, (String) row.get(2)));
+                                        bomComponent.setPomContent(fetchContent(bomComponent.repoURL));
+                                        bomComponent.setModel(populateModel(bomComponent.pomContent));
+                                        component.setBomModel(bomComponent.getModel());
+                                    }
+                                }
+                            }
 
                             // Check if the dependency contains the component to search and get the version
                             // Scan first the pom
@@ -129,7 +157,7 @@ public class GSheetApplication {
                             // - The version of the component,
                             // - The Url of the maven repo to access the pom file of the component, starter
                             cellPosition = configuration.getCellUpComponentURL() + (i + 1);
-                            hyperlink = "=HYPERLINK(\"" + populateMavenRepoURL(configuration.mavenCentralRepo,component.groupId.replaceAll("\\.", "/"),component.getArtifactId(),component.version) + "\",\"" + component.version + "\")";
+                            hyperlink = "=HYPERLINK(\"" + populateMavenRepoURL(mavenRepo,component.groupId.replaceAll("\\.", "/"),component.getArtifactId(),component.version) + "\",\"" + component.version + "\")";
                             updateCells(service, cellPosition, "USER_ENTERED", hyperlink);
 
                             // Update the downstream cell of the Component using as text:
@@ -219,17 +247,19 @@ public class GSheetApplication {
         Model model;
         List<Dependency> dependencies;
 
-        if (!IsParentPom) {
+        if (component.getBomModel() != null) {
+            model = component.getBomModel();
+        } else if (!IsParentPom) {
             model = component.getModel();
         } else {
             model = component.getParentModel();
         }
 
-        if (model.getDependencies().size() > 0) {
-            dependencies = model.getDependencies();
+         if (model.getDependencies().size() > 0) {
+                dependencies = model.getDependencies();
         } else {
-            dependencies = model.getDependencyManagement().getDependencies();
-        }
+             dependencies = model.getDependencyManagement().getDependencies();
+         }
 
         for (Dependency dep : dependencies) {
             component = searchVersion(component, dep, IsParentPom);
@@ -257,7 +287,7 @@ public class GSheetApplication {
             // using the parent pom
             if (dependency.getVersion() == null) {
                 Parent parent = component.getModel().getParent();
-                component.setParentRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
+                component.setParentRepoURL(populateMavenRepoURL(mavenRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
                 component.setParentPomContent(fetchContent(component.parentRepoURL));
                 component.setParentModel(populateModel(component.parentPomContent));
                 return getComponentVersion(component, true);
@@ -280,13 +310,17 @@ public class GSheetApplication {
                 // where xxxxxx is a property
                 if (dependency.getVersion().startsWith("${")) {
                     Properties props = component.getModel().getProperties();
-                    // If there are no properties within the pom, then we will fetch them from the parent
+                    // If there are no properties within the pom, then we will fetch them from the BOM or the parent
                     if (props.size() <= 0) {
-                        Parent parent = component.getModel().getParent();
-                        component.setParentRepoURL(populateMavenRepoURL(configuration.mavenCentralRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
-                        component.setParentPomContent(fetchContent(component.parentRepoURL));
-                        component.setParentModel(populateModel(component.parentPomContent));
-                        props = component.getParentModel().getProperties();
+                        if (component.getBomModel() != null) {
+                            props = component.getBomModel().getProperties();
+                        } else {
+                            Parent parent = component.getModel().getParent();
+                            component.setParentRepoURL(populateMavenRepoURL(mavenRepo, parent.getGroupId().replaceAll("\\.", "/"), parent.getArtifactId(), parent.getVersion()));
+                            component.setParentPomContent(fetchContent(component.parentRepoURL));
+                            component.setParentModel(populateModel(component.parentPomContent));
+                            props = component.getParentModel().getProperties();
+                        }
                     }
                     Set<Map.Entry<Object, Object>> entries = props.entrySet();
                     for (Map.Entry<Object, Object> entry : entries) {
